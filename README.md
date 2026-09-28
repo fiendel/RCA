@@ -1,5 +1,3 @@
-Absolutely. I’d keep the mathematics serious, but make the README feel like an actual polished research project rather than a raw specification dump: cleaner hierarchy, small visual touches, compact tables, callout blocks, and a clearer “what RCA is / isn’t” identity.
-
 # RCA
 
 **RCA** is an **experimental reversible mathematical transformation** being developed as a potential cryptographic primitive for **RemoteControlC#**.
