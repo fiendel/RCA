@@ -1,149 +1,296 @@
+Absolutely. I’d keep the mathematics serious, but make the README feel like an actual polished research project rather than a raw specification dump: cleaner hierarchy, small visual touches, compact tables, callout blocks, and a clearer “what RCA is / isn’t” identity.
+
 # RCA
 
-RCA is an experimental reversible mathematical transformation designed to serve as the main cryptographic primitive for the **RemoteControlC#** project.
+**RCA** is an **experimental reversible mathematical transformation** being developed as a potential cryptographic primitive for **RemoteControlC#**.
 
-The current implementation is a C#/.NET 10 port of the **RCA 1.5 Alpha** reference implementation originally developed and tested in Maxima.
+It combines nonlinear polynomial transformations, triangular reversible mappings, generated round constants, and Cauchy-based diffusion into a fully reversible construction over a finite field.
 
-> **Status: Experimental / Alpha**
+> [!WARNING]
 >
-> RCA has not been proven cryptographically secure and has not undergone professional cryptanalysis. Passing the included tests does not constitute a security guarantee.
+> ### Experimental / Alpha
+>
+> RCA has **not** been proven cryptographically secure and has not undergone professional cryptanalysis.
+>
+> Passing the included tests does **not** constitute a security guarantee.
+>
+> RCA is a mathematical research project, not a replacement for established cryptographic standards.
 
-## Project Goals
+---
 
-The RCA project has two main goals:
+## What is RCA?
 
-1. Provide a precise C# implementation of the RCA mathematical construction.
-2. Eventually use RCA as the principal cryptographic primitive within RemoteControlC#.
-
-RCA is intentionally being developed as its own construction rather than as a wrapper around conventional cryptographic algorithms.
-
-This project does **not** attempt to replace established cryptographic standards in general-purpose security applications.
-
-## Current Version
-
-**RCA 1.5 Alpha**
-
-The current mathematical reference configuration uses:
-
-* `S = 17`
-* `Rounds = 8`
-* `P` — prime modulus parameter
-* `Q` — prime modulus parameter
-* `Seed` — deterministic constant-generation seed
-
-The original Maxima reference configuration uses 61-bit values for `P` and `Q`.
-
-The C# runtime implementation is designed to use **256-bit parameters**.
-
-## Architecture
-
-The core transformation operates on a pair of integers:
+RCA works on a two-element state:
 
 ```text
 (x, y)
 ```
 
-with arithmetic performed modulo `Q`.
-
-The construction consists of several layers:
+over a finite field:
 
 ```text
-Input
-  │
-  ▼
-Round 1
-  │
-  ├── Triangular transformation
-  │
-  └── Diffusion
-  │
-  ▼
-Round 2
-  │
-  └── Alternating triangular transformation
-  │
-  ▼
-Round 3
-  │
-  └── Triangular transformation
-  │
-  ▼
-...
-  │
-  ▼
-Round 8
-  │
-  ▼
-Output
+F_Q
 ```
 
-The transformation is explicitly reversible.
+where `Q` is a prime modulus.
 
-For every valid state:
+At a high level, each transformation combines:
+
+```text
+          ┌──────────────────────┐
+          │   Polynomial Layer   │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │ Triangular Transform │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  Cauchy Diffusion    │
+          └──────────┬───────────┘
+                     │
+                     ▼
+               Next Round
+```
+
+The construction is explicitly reversible.
+
+For valid parameters:
 
 ```text
 RcaInverse(RcaForward(x, y)) = (x, y)
 ```
 
-subject to the modular representation used by RCA.
+using RCA's normalized modular representation.
 
-## Main Components
-
-### Polynomial Layer
-
-RCA uses two fifth-degree polynomial transformations:
+The important distinction is:
 
 ```text
-Poly1(z)
-Poly2(z)
+reversible ≠ secure
 ```
 
-Their coefficients depend on the RCA parameters `P`, `Q`, and `S`.
+RCA is currently investigating whether the construction has useful cryptographic properties.
 
-### Triangular Transformation
+---
 
-The triangular layer performs two sequential transformations:
+# Project Goals
+
+RCA has two primary goals:
+
+1. Provide a precise and reproducible implementation of the mathematical construction.
+2. Investigate its mathematical and cryptographic properties through systematic analysis and public cryptanalysis.
+
+The construction is intentionally developed as an independent mathematical experiment rather than as a wrapper around an established cipher.
+
+The project therefore emphasizes:
+
+* explicit mathematics;
+* reproducibility;
+* reversible components;
+* reduced-field experimentation;
+* deterministic test cases;
+* structural analysis;
+* public cryptanalysis.
+
+---
+
+# Mathematical Domain
+
+RCA operates over the finite field:
 
 ```text
-u = x + 3·Poly1(y) + c1
-v = y + 5·Poly2(u) + c2
+F_Q
 ```
 
-Because the second operation depends on the already transformed value `u`, the transformation can be inverted in reverse order.
+where `Q` must be prime.
 
-### Diffusion
-
-The diffusion layer operates on the two state values using parameters derived from the generated constants.
-
-Its matrix has determinant:
+All arithmetic is performed modulo `Q` and normalized to:
 
 ```text
-1
+0 ≤ result < Q
 ```
 
-making the transformation directly invertible modulo `Q`.
-
-### Round Structure
-
-RCA currently uses:
+Conceptually:
 
 ```text
-8 rounds
+QMod(a) = a mod Q
 ```
 
-Odd and even rounds use different triangular arrangements.
+Because `Q` is prime, every non-zero element has a modular inverse.
 
-Diffusion is applied after the first round.
+This property is required by the Cauchy diffusion layer.
 
-### Constant Generation
-
-Round constants are deterministically generated from:
+The implementation uses:
 
 ```text
-P
-Q
-S
+System.Numerics.BigInteger
+```
+
+which allows the same mathematical construction to be explored using both large runtime parameters and deliberately small fields.
+
+---
+
+# Parameters
+
+## Default Configuration
+
+The current implementation uses:
+
+| Parameter |                                                                            Value |
+| --------- | -------------------------------------------------------------------------------: |
+| `S`       | `105838779746977706534567425713943043587340851698368009336013493163745832440967` |
+| `P`       |  `66318991444146036142144795907406834002613589887754326532857488346747551061993` |
+| `Q`       |  `81069498142629847296323192818110672837011592537063629126965579807735251115349` |
+| `Rounds`  |                                                                              `8` |
+
+`Q` is required to be prime.
+
+`P` and `S` are normalized modulo `Q` and must satisfy the restrictions required by the diffusion layer.
+
+The default constructor additionally requires the seed to be exactly **256 bits**.
+
+---
+
+# Reduced-Field Configurations
+
+RCA provides a reduced-field configuration for mathematical experimentation:
+
+```text
+RCA.CreateReduced(seed, rounds, p, s, q)
+```
+
+This allows the same construction to operate over small prime fields such as:
+
+```text
+Q = 17
+```
+
+Reduced configurations are useful for:
+
+* exhaustive testing;
+* bijection verification;
+* manually inspectable examples;
+* reduced-round experiments;
+* structural analysis;
+* mathematical experimentation.
+
+A small field is a **research configuration**, not an equivalent representation of the security level of the 256-bit configuration.
+
+---
+
+# Nonlinear Polynomial Layer
+
+RCA currently uses two different nonlinear polynomials.
+
+Both are evaluated modulo `Q`.
+
+## Poly1 — Degree 5
+
+```math
+P_1(z)=z^5+Pz^3+Sz^2+(P+S)z+(PS+1)\pmod Q
+```
+
+The implementation derives:
+
+```text
+z² = z · z
+z³ = z² · z
+z⁵ = z³ · z²
+```
+
+and evaluates:
+
+```text
+Poly1(z) =
+    z⁵
+  + P·z³
+  + S·z²
+  + (P + S)·z
+  + (P·S + 1)
+```
+
+modulo `Q`.
+
+---
+
+## Poly2 — Degree 7
+
+```math
+P_2(z)=z^7+Sz^5+Pz^3+(S^2+1)z^2+(P+2S)z+(PS+S+1)\pmod Q
+```
+
+The implementation derives:
+
+```text
+z²
+z³
+z⁵
+z⁷
+```
+
+through repeated multiplication.
+
+The resulting polynomial is:
+
+```text
+Poly2(z) =
+    z⁷
+  + S·z⁵
+  + P·z³
+  + (S² + 1)·z²
+  + (P + 2S)·z
+  + (P·S + S + 1)
+```
+
+modulo `Q`.
+
+The degree-5 and degree-7 layers provide the nonlinear component of the current construction.
+
+---
+
+# Round Constants
+
+RCA generates deterministic round constants from:
+
+```text
 Seed
+P
+S
+Q
+```
+
+The initial value is:
+
+```math
+v_0=(Seed+P+S)\bmod Q
+```
+
+A polynomial constant transformation is then repeatedly applied.
+
+## ConstantStep
+
+```math
+C(v)=v^5+17v^3+31v^2+13v+29\pmod Q
+```
+
+For round index `i`, the implementation additionally computes:
+
+```math
+P_i=P^i\bmod Q
+```
+
+and:
+
+```math
+T_i=iP_i+Si^3\pmod Q
+```
+
+The next constant is:
+
+```math
+v_i=C(v_{i-1})+T_i\pmod Q
 ```
 
 The implementation generates:
@@ -152,177 +299,630 @@ The implementation generates:
 Rounds + 2
 ```
 
-constants.
-
-The final two constants are used by the diffusion layer.
-
-## Parameters
-
-### Reference Parameters
-
-The original Maxima RCA 1.5 Alpha reference configuration uses:
+constants:
 
 ```text
-P =
-2305843009213693951
-
-Q =
-2305843009213694087
-
-S =
-17
-
-Rounds =
-8
+v₀ ... v(Rounds+1)
 ```
 
-with the corresponding reference seed stored in the test suite.
+The relevant constants are then consumed by the round transformations.
 
-These values are retained specifically for compatibility testing against the Maxima implementation.
+---
 
-### Runtime Parameters
+# Triangular Transformation
 
-The C# implementation currently generates:
+The central reversible component is a **triangular transformation**.
+
+The important idea is that each stage introduces one new value while retaining the previous value in a directly recoverable form.
+
+This means RCA does **not** need to invert `Poly1` or `Poly2`.
+
+That distinction is fundamental to the construction.
+
+---
+
+## Odd Rounds
+
+An odd round computes:
+
+```math
+u=x+3P_1(yP)+c_1\pmod Q
+```
+
+followed by:
+
+```math
+v=y+5P_2(uS)+c_2\pmod Q
+```
+
+The conceptual flow is:
 
 ```text
-P    = random 256-bit probable prime
-Q    = random 256-bit probable prime
-Seed = random 256-bit value
-
-S      = 17
-Rounds = 8
+       y
+       │
+       ▼
+      y·P
+       │
+       ▼
+     Poly1
+       │
+       ▼
+   3 · Poly1
+       │
+       ├───────────────┐
+       │               │
+       ▼               │
+   x + ... + c₁        │
+       │               │
+       ▼               │
+       u               │
+       │               │
+       ▼               │
+      u·S              │
+       │               │
+       ▼               │
+     Poly2              │
+       │               │
+       ▼               │
+   5 · Poly2            │
+       │               │
+       └──────► y + ... + c₂
+                       │
+                       ▼
+                       v
 ```
 
-`P` and `Q` are generated independently and are required to be different.
+The inverse starts from `(u, v)`:
 
-## Testing
+```math
+y=v-5P_2(uS)-c_2\pmod Q
+```
 
-The repository contains a standalone diagnostic test project:
+and then:
+
+```math
+x=u-3P_1(yP)-c_1\pmod Q
+```
+
+No polynomial inversion is necessary.
+
+The reversibility comes from the **triangular structure**.
+
+---
+
+# Even Rounds
+
+Even rounds use the complementary triangular arrangement.
+
+First:
+
+```math
+u=y+3P_2(x)+c_1\pmod Q
+```
+
+Then:
+
+```math
+v=x+5P_1(u)+c_2\pmod Q
+```
+
+The output is swapped:
+
+```text
+output = (v, u)
+```
+
+Therefore the inverse begins with:
+
+```text
+u = output.y
+v = output.x
+```
+
+and recovers:
+
+```math
+x=v-5P_1(u)-c_2\pmod Q
+```
+
+followed by:
+
+```math
+y=u-3P_2(x)-c_1\pmod Q
+```
+
+Again, neither nonlinear polynomial needs to be inverted.
+
+---
+
+# Cauchy Diffusion
+
+Diffusion is applied after the first round.
+
+The current construction derives its diffusion matrix from:
+
+```text
+P
+S
+```
+
+using:
+
+```math
+M=
+\begin{pmatrix}
+(1+P)^{-1} & (1+S)^{-1}\\
+(2+P)^{-1} & (2+S)^{-1}
+\end{pmatrix}
+\pmod Q
+```
+
+For a state:
+
+```text
+(x, y)
+```
+
+the diffusion produces:
+
+```math
+x'=(1+P)^{-1}x+(1+S)^{-1}y\pmod Q
+```
+
+and:
+
+```math
+y'=(2+P)^{-1}x+(2+S)^{-1}y\pmod Q
+```
+
+The constructor prevents parameter values that would make a denominator zero modulo `Q`.
+
+Therefore `P` and `S` cannot be congruent to:
+
+```text
+-1
+```
+
+or:
+
+```text
+-2
+```
+
+modulo `Q`.
+
+They must also be distinct modulo `Q`.
+
+---
+
+## Diffusion Inverse
+
+The implementation calculates the determinant from the actual matrix:
+
+```math
+det(M)=ad-bc
+```
+
+For:
+
+```math
+M=
+\begin{pmatrix}
+a&b\\
+c&d
+\end{pmatrix}
+```
+
+the inverse is:
+
+```math
+M^{-1}
+=
+det(M)^{-1}
+\begin{pmatrix}
+d&-b\\
+-c&a
+\end{pmatrix}
+```
+
+provided:
+
+```text
+det(M) ≠ 0 mod Q
+```
+
+The implementation explicitly calculates the determinant and its modular inverse.
+
+There is therefore **no assumption that the diffusion determinant is 1**.
+
+---
+
+# Complete Round Structure
+
+The current implementation uses:
+
+```text
+8 rounds
+```
+
+with diffusion applied only after the first round.
+
+```text
+                 INPUT
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 1  │
+             │   ODD     │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  CAUCHY   │
+             │ DIFFUSION │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 2  │
+             │   EVEN    │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 3  │
+             │   ODD     │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 4  │
+             │   EVEN    │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 5  │
+             │   ODD     │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 6  │
+             │   EVEN    │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 7  │
+             │   ODD     │
+             └─────┬─────┘
+                   │
+                   ▼
+             ┌───────────┐
+             │  ROUND 8  │
+             │   EVEN    │
+             └─────┬─────┘
+                   │
+                   ▼
+                 OUTPUT
+```
+
+The inverse performs the corresponding operations in reverse order and applies the inverse diffusion before undoing round 1.
+
+---
+
+# Forward Transformation
+
+The public forward operation is:
+
+```text
+RcaForward(x, y)
+```
+
+The input state is first normalized:
+
+```text
+x = x mod Q
+y = y mod Q
+```
+
+The implementation then executes:
+
+```text
+Round 1
+Diffusion
+Round 2
+...
+Round 8
+```
+
+producing:
+
+```text
+(x', y')
+```
+
+---
+
+# Inverse Transformation
+
+The public inverse operation is:
+
+```text
+RcaInverse(x, y)
+```
+
+The inverse processes the construction backwards:
+
+```text
+Round 8
+Round 7
+...
+Round 2
+Inverse Diffusion
+Round 1
+```
+
+For valid parameters and the normalized field representation:
+
+```text
+RcaInverse(RcaForward(x, y)) = (x, y)
+```
+
+and:
+
+```text
+RcaForward(RcaInverse(x, y)) = (x, y)
+```
+
+---
+
+# Prime Generation
+
+The implementation contains a probable-prime generator for 256-bit values.
+
+Candidates are generated using:
+
+```text
+RandomNumberGenerator
+```
+
+and tested using a Miller-Rabin-style probable-prime test with:
+
+```text
+32 rounds
+```
+
+Small-prime trial division is performed before the probabilistic test.
+
+The result is a:
+
+> **probable prime**
+
+rather than a mathematical proof of primality.
+
+---
+
+# Random Parameters
+
+The implementation provides:
+
+```text
+CreateRandom()
+```
+
+for generating a random 256-bit seed.
+
+It also provides:
+
+```text
+CreateRandomPrime256()
+```
+
+for generating a 256-bit probable prime.
+
+The current runtime configuration uses the fixed `P`, `Q`, and `S` values documented above.
+
+The constructor architecture nevertheless supports:
+
+* supplied parameters;
+* independently supplied seeds;
+* reduced-field configurations;
+* experimental parameter sets.
+
+---
+
+# Testing
+
+The project contains a standalone diagnostic test project:
 
 ```text
 RCA.Tests
 ```
 
-The test runner currently verifies:
+The tests examine properties including:
 
-* 256-bit parameter sizes
-* `P != Q`
-* primality checks
-* constant count
-* constant range
-* polynomial output range
-* diffusion reversibility
-* triangular reversibility
-* complete RCA reversibility
-* different-input behavior
-* deterministic behavior
-* independent parameter generation
-* exact Maxima reference vectors
+* parameter validity;
+* prime-modulus validation;
+* constant generation;
+* constant ranges;
+* polynomial output ranges;
+* triangular reversibility;
+* diffusion reversibility;
+* complete RCA reversibility;
+* deterministic behaviour;
+* different-input behaviour;
+* reduced-field behaviour;
+* reference compatibility where applicable.
 
-Current result:
+A passing test means:
 
-```text
-FINAL RESULT: 26 passed, 0 failed
-RCA TEST SUITE: PASS
-```
+> the implementation passed the property that was tested.
 
-## Maxima Compatibility
+It does **not** mean:
 
-The C# implementation has been tested against the original Maxima RCA 1.5 Alpha implementation.
+> RCA is cryptographically secure.
 
-Five independent reference inputs currently reproduce the exact Maxima outputs:
+---
 
-```text
-(0, 0)
+# Cryptanalytic Diagnostics
 
-(1, 1)
+RCA is being subjected to increasingly demanding analysis, including:
 
-(123456789, 987654321)
+| Analysis              | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| Bijection             | Verify one-to-one behaviour                      |
+| Avalanche             | Measure output sensitivity                       |
+| Differential          | Search for non-random input/output differences   |
+| Linear                | Search for exploitable linear relationships      |
+| Walsh                 | Examine Boolean correlation structure            |
+| Reduced-round         | Study individual round counts                    |
+| Structural            | Search for algebraic or architectural weaknesses |
+| Parameter sensitivity | Examine dependence on `P`, `S`, and `Q`          |
+| Seed sensitivity      | Examine dependence on the seed                   |
+| Statistical tests     | Search for unusual distributions                 |
 
-(Q-1, Q-2)
+These experiments are **diagnostic tools**, not security proofs.
 
-(2^60, 2^59)
-```
-
-For example:
-
-```text
-Input:
-123456789
-987654321
-
-Maxima:
-351668050717095916
-50542148241801508
-
-C#:
-351668050717095916
-50542148241801508
-```
-
-This provides an exact implementation-level compatibility check between the Maxima reference and the C# implementation.
-
-## Reference Diagnostics
-
-The original Maxima RCA 1.5 Alpha diagnostic suite reports:
+In particular:
 
 ```text
-PASS "PRIMES"
-PASS "DETERMINISM"
-PASS "TRIANGULAR"
-PASS "DIFFUSION"
-PASS "DETERMINANT"
-PASS "REVERSIBILITY"
-PASS "ROUND-COUNT"
-PASS "ROUND-EFFECT"
+reversibility ≠ cryptographic security
 ```
-
-Its reported sensitivity measurements are:
 
 ```text
-AVALANCHE    60.8084577
-DIFFERENTIAL 60.8524578
-PARAMETER    61.124975
-SEED         61.734476
+avalanche ≠ cryptographic security
 ```
 
-These measurements are retained as reference diagnostics.
+```text
+statistical uniformity ≠ cryptographic security
+```
 
-They should **not** be interpreted as a cryptographic security proof.
+A reproducible structural or cryptanalytic weakness is substantially more meaningful than simply observing a desirable statistical result.
 
-## Security Status
+---
 
-RCA is experimental cryptographic research.
+# Experimental Security Status
 
-The following statements are intentionally **not** made:
+RCA currently makes **no claim** that it is:
 
-* RCA is cryptographically secure.
-* RCA is resistant to known cryptanalytic attacks.
-* RCA is suitable for protecting sensitive data.
-* RCA is equivalent to a standardized cipher.
-* The avalanche measurements prove security.
-* The reversibility tests prove security.
+* cryptographically secure;
+* resistant to known or future attacks;
+* suitable for protecting sensitive information;
+* equivalent to a standardized cryptographic primitive;
+* production-ready cryptography;
+* secure merely because its current tests pass.
 
-The current goal is to make the implementation mathematically precise, deterministic where required, independently testable, and suitable for further cryptanalysis.
+The construction is intended to remain open to independent analysis.
 
-Public cryptanalysis and independent review are encouraged.
+Areas of interest include:
 
-## Dependencies
+* distinguishers;
+* differential attacks;
+* linear attacks;
+* algebraic attacks;
+* invariants;
+* reduced-round attacks;
+* structural shortcuts;
+* unexpected parameter relationships;
+* state-recovery shortcuts;
+* seed-recovery attacks;
+* attacks substantially below generic brute-force complexity.
 
-The core implementation currently relies on standard .NET functionality, including:
+The central research question is simple:
 
-* `System.Numerics.BigInteger`
-* `System.Security.Cryptography.RandomNumberGenerator`
+> **Can the construction be broken?**
 
-No external cryptographic library is required for the RCA implementation.
+A reproducible attack is valuable research information, even if it completely invalidates the current design.
 
-## Target Framework
+---
+
+# Public Cryptanalysis
+
+The mathematical construction is intentionally documented openly.
+
+The objective is not to hide the design.
+
+The objective is to discover whether the design contains weaknesses that have not yet been identified.
+
+Independent researchers are encouraged to:
+
+1. Reproduce the implementation.
+2. Verify the mathematical specification.
+3. Test reduced configurations.
+4. Analyze individual layers.
+5. Analyze reduced-round versions.
+6. Analyze the complete construction.
+7. Publish reproducible weaknesses or attacks.
+
+Until substantially more analysis has been performed, RCA should be regarded as an:
+
+> **open cryptanalytic experiment**
+
+---
+
+# RemoteControlC# Integration
+
+RCA is developed as an independent library so that its mathematical construction can be tested separately from the RemoteControlC# application.
+
+The intended architecture is:
+
+```text
+┌─────────────────────┐
+│   RemoteControlC#   │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│        RCA          │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Mathematical        │
+│ Transformation      │
+└─────────────────────┘
+```
+
+RCA is responsible for the mathematical transformation itself.
+
+Higher-level security concerns remain separate, including:
+
+* authentication;
+* key management;
+* session establishment;
+* replay protection;
+* protocol framing;
+* message integrity;
+* transport security.
+
+Using RCA alone does not automatically provide these properties.
+
+---
+
+# Dependencies
+
+The mathematical implementation currently relies on standard .NET functionality:
+
+```text
+System.Numerics.BigInteger
+System.Security.Cryptography.RandomNumberGenerator
+```
+
+No external cryptographic library is required for the RCA mathematical construction.
+
+---
+
+# Target Framework
 
 ```text
 .NET 10
 ```
 
-## Repository Structure
+---
+
+# Repository Structure
 
 The intended structure is:
 
@@ -330,7 +930,7 @@ The intended structure is:
 RCA/
 │
 ├── RCA/
-│   ├── RCAMain.cs
+│   ├── RCA.cs
 │   └── ...
 │
 ├── RCA.Tests/
@@ -340,36 +940,45 @@ RCA/
 └── README.md
 ```
 
-## Relationship With RemoteControlC#
+The exact filenames may evolve as the project develops.
 
-RCA is being developed as an independent library so that the mathematical implementation can be tested and evolved separately from the RemoteControlC# application.
+---
 
-The intended architecture is:
+# Development Philosophy
 
-```text
-RemoteControlC#
-       │
-       ▼
-      RCA
-       │
-       ▼
-RCA mathematical transformation
-```
+RCA follows a few simple principles:
 
-Authentication, protocol framing, session management, replay protection, and other protocol-level mechanisms are separate concerns and will be designed above the RCA primitive.
+* Keep the mathematics explicit.
+* Separate mathematical properties from cryptographic claims.
+* Preserve deterministic behaviour where required.
+* Use `BigInteger` for arbitrary-size integer arithmetic.
+* Support reduced fields for mathematical experimentation.
+* Maintain reproducible test cases.
+* Test reversible components independently.
+* Analyse individual layers and the complete construction.
+* Keep the mathematical implementation separate from RemoteControlC# integration.
+* Treat the construction as experimental until independently analysed.
+* Prefer reproducible mathematical evidence over unsupported security claims.
 
-## Development Philosophy
+---
 
-The project follows several principles:
-
-* Keep the mathematical construction explicit.
-* Preserve compatibility with the Maxima reference implementation.
-* Avoid unnecessary dependencies.
-* Use `BigInteger` rather than restricting the implementation to machine-sized integers.
-* Maintain deterministic reference vectors.
-* Keep mathematical changes separate from integration work.
-* Treat experimental cryptography as experimental until independently analyzed.
-
-## License
+# License
 
 License information will be added when the repository licensing decision is finalized.
+
+---
+
+<div align="center">
+
+**RCA**
+
+*An experimental reversible mathematical construction.*
+
+```text
+Build → Measure → Analyse → Try to Break → Improve
+```
+
+**Experimental. Reversible. Open to analysis.**
+
+</div>
+
